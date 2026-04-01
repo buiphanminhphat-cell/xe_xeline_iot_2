@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ERA AGV - Manual Mode Fixed</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .header-bar {
+            background-color: #1a1a1a;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            justify-content: space-between;
+        }
+
+        .main-canvas {
+            background-color: #e6f2f2; 
+            height: calc(100vh - 50px);
+            position: relative;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .control-block {
+            background-color: #a0aec0; 
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s;
+            cursor: pointer;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .control-block:active {
+            background-color: #4a5568;
+            transform: scale(0.95);
+        }
+
+        .arrow-icon {
+            color: white;
+            font-size: 60px;
+            pointer-events: none;
+        }
+
+        .fork-btn {
+            background-color: #f7fafc;
+            border-radius: 12px;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 2px solid #cbd5e0;
+            cursor: pointer;
+            color: #2d3748;
+        }
+        .fork-btn:active { transform: scale(0.95); background-color: #edf2f7; }
+
+        .central-toggle-area {
+            width: 160px;
+            height: 160px;
+            background: #e2e8f0;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 4px solid #cbd5e0;
+            position: relative;
+        }
+
+        .large-switch {
+            position: relative;
+            display: inline-block;
+            width: 100px;
+            height: 50px;
+        }
+
+        .large-switch input { opacity: 0; width: 0; height: 0; }
+
+        .large-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #cbd5e0;
+            transition: .4s;
+            border-radius: 50px;
+            border: 2px solid #a0aec0;
+        }
+
+        .large-slider:before {
+            position: absolute;
+            content: "";
+            height: 38px; width: 38px;
+            left: 4px; bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .large-slider { background-color: #38b2ac; border-color: #2c7a7b; }
+        input:checked + .large-slider:before { transform: translateX(50px); }
+
+        .battery-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.9);
+            padding: 4px 10px;
+            border-radius: 15px;
+            border: 1px solid #cbd5e0;
+        }
+
+        .battery-icon {
+            width: 30px;
+            height: 15px;
+            border: 2px solid #2d3748;
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .battery-level {
+            height: 100%;
+            background: #48bb78;
+            width: 85%;
+        }
+
+        #auto-map {
+            display: none;
+            background: #ffffff;
+            border-radius: 12px;
+            flex: 2;
+            height: 100%;
+            position: relative;
+            border: 2px solid #cbd5e0;
+            overflow: hidden;
+        }
+
+        #map-image-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: contain;
+            opacity: 0.6;
+            z-index: 0;
+        }
+
+        .route-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+        }
+
+        .route-line { position: absolute; background: #4299e1; height: 2px; opacity: 0.5; }
+        .station-node { width: 10px; height: 10px; background: #f56565; border-radius: 50%; position: absolute; }
+        
+        #mini-truck { 
+            width: 40px; height: 40px; 
+            position: absolute; z-index: 5; 
+            transition: all 1s linear; 
+            display: flex; align-items: center; justify-content: center;
+            transform: translate(-50%, -50%); 
+        }
+
+        .agv-icon { width: 100%; height: 100%; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+
+        #e-stop-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 110px; height: 110px;
+            background-color: #e53e3e;
+            color: white;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 900;
+            text-align: center;
+            border: 6px solid #c53030;
+            box-shadow: 0 4px 15px rgba(229, 62, 62, 0.4);
+            cursor: pointer;
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+
+        #e-stop-btn.active {
+            background-color: #2d3748;
+            border-color: #1a202c;
+            animation: pulse-red 1s infinite;
+        }
+
+        #e-stop-btn.active span { display: none; }
+        #e-stop-btn.active::after { content: 'RESET'; font-size: 16px; }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0px rgba(229, 62, 62, 0.7); }
+            100% { box-shadow: 0 0 0 20px rgba(229, 62, 62, 0); }
+        }
+
+        .manual-controls { display: flex; flex: 3; gap: 20px; width: 100%; transition: all 0.3s; }
+        body.is-auto .manual-controls { flex: 1.2; opacity: 0.4; }
+        body.is-auto .control-block, body.is-auto .fork-btn { cursor: not-allowed; }
+
+    </style>
+</head>
+<body>
+
+    <div class="header-bar">
+        <div class="flex items-center gap-4">
+            <span class="text-xl cursor-pointer">←</span>
+            <span class="text-sm font-semibold uppercase tracking-wider">ERA AGV SYSTEM</span>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <label class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-3 rounded cursor-pointer transition-colors">
+                TẢI MAP MỚI
+                <input type="file" id="map-upload" accept="image/*" class="hidden">
+            </label>
+            <span class="text-lg">🔌❌</span>
+            <span class="bg-gray-700 px-2 py-1 rounded text-xs font-bold">V1.8.0</span>
+        </div>
+    </div>
+
+    <div class="main-canvas" id="canvas">
+        <div class="manual-controls" id="manual-panel">
+            <div class="flex flex-col gap-4 w-1/4">
+                <div class="control-block h-1/2" onmousedown="startMove('UP')" onmouseup="stopMove()"><span class="arrow-icon">▲</span></div>
+                <div class="control-block h-1/2" onmousedown="startMove('DOWN')" onmouseup="stopMove()"><span class="arrow-icon">▼</span></div>
+            </div>
+
+            <div class="flex flex-col items-center justify-between py-2 flex-1">
+                <div class="flex gap-4 items-center">
+                    <div class="text-center">
+                        <div class="text-3xl font-black text-gray-800" id="speed-val">0</div>
+                        <div class="text-[9px] text-gray-500 font-bold uppercase">Km/h</div>
+                    </div>
+                    <div class="battery-container">
+                        <div class="battery-icon"><div class="battery-level" id="bat-level"></div></div>
+                        <span class="text-[12px] font-black text-gray-800"><span id="bat-val">85</span>%</span>
+                    </div>
+                </div>
+                <div class="central-toggle-area">
+                    <span class="text-[11px] font-bold text-gray-500 tracking-widest uppercase mb-1" id="mode-label">Manual</span>
+                    <label class="large-switch">
+                        <input type="checkbox" id="mode-toggle">
+                        <span class="large-slider"></span>
+                    </label>
+                    <div class="mt-3 flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full bg-teal-500 animate-pulse" id="status-dot"></div>
+                        <span class="text-[9px] font-bold text-gray-400">SYSTEM READY</span>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="fork-btn" onmousedown="startMove('LIFT')" onmouseup="stopMove()">⬆️<span class="text-[9px] font-bold">NÂNG</span></div>
+                    <div class="fork-btn" onmousedown="startMove('DROP')" onmouseup="stopMove()">⬇️<span class="text-[9px] font-bold">HẠ</span></div>
+                </div>
+            </div>
+
+            <div class="flex gap-4 w-1/4">
+                <div class="control-block flex-1" onmousedown="startMove('LEFT')" onmouseup="stopMove()"><span class="arrow-icon">◀</span></div>
+                <div class="control-block flex-1" onmousedown="startMove('RIGHT')" onmouseup="stopMove()"><span class="arrow-icon">▶</span></div>
+            </div>
+        </div>
+
+        <div id="auto-map" class="shadow-2xl">
+            <div class="p-3 bg-gray-50 border-b flex justify-between items-center relative z-10">
+                <span class="text-[11px] font-black text-blue-600 uppercase">AGV Live Tracking</span>
+                <span class="text-[9px] text-gray-400 italic">Global Map View</span>
+            </div>
+            <img id="map-image-layer" src="" alt="User Map" class="hidden">
+            <div class="route-overlay relative w-full h-[85%]">
+                <div class="route-line w-[80%] left-[10%] top-[30%]"></div>
+                <div class="route-line w-[80%] left-[10%] top-[70%]"></div>
+                <div id="mini-truck">
+                    <svg class="agv-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="15" y="25" width="70" height="50" rx="10" fill="#2d3748" stroke="#ffffff" stroke-width="2"/>
+                        <circle cx="30" cy="75" r="8" fill="#1a202c"/>
+                        <circle cx="70" cy="75" r="8" fill="#1a202c"/>
+                        <path d="M45 25 L50 15 L55 25" stroke="#38b2ac" fill="none" stroke-width="2"/>
+                    </svg>
+                </div>
+                <div id="e-stop-btn" onclick="toggleEmergency()">
+                    <span>DỪNG<br>KHẨN CẤP</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const modeToggle = document.getElementById('mode-toggle');
+        const autoMap = document.getElementById('auto-map');
+        const mapUpload = document.getElementById('map-upload');
+        const mapImage = document.getElementById('map-image-layer');
+        const speedDisplay = document.getElementById('speed-val');
+        const miniTruck = document.getElementById('mini-truck');
+        const eStopBtn = document.getElementById('e-stop-btn');
+        const modeLabel = document.getElementById('mode-label');
+
+        let isEmergency = false;
+        let isAuto = false;
+
+        function startMove(direction) {
+            if (isAuto || isEmergency) return;
+            speedDisplay.innerText = "5";
+        }
+
+        function stopMove() {
+            if (isAuto || isEmergency) return;
+            speedDisplay.innerText = "0";
+        }
+
+        function toggleEmergency() {
+            if (!isEmergency) {
+                isEmergency = true;
+                eStopBtn.classList.add('active');
+                stopAutoSimulation();
+                speedDisplay.innerText = "0";
+            } else {
+                isEmergency = false;
+                eStopBtn.classList.remove('active');
+                if(isAuto) startAutoSimulation();
+            }
+        }
+
+        modeToggle.addEventListener('change', function() {
+            isAuto = this.checked;
+            if(isAuto) {
+                document.body.classList.add('is-auto');
+                autoMap.style.display = "block";
+                modeLabel.innerText = "AUTO MODE";
+                modeLabel.style.color = "#38b2ac";
+                if(!isEmergency) startAutoSimulation();
+            } else {
+                document.body.classList.remove('is-auto');
+                autoMap.style.display = "none";
+                modeLabel.innerText = "MANUAL";
+                modeLabel.style.color = "#6b7280";
+                stopAutoSimulation();
+                speedDisplay.innerText = "0";
+            }
+        });
+
+        mapUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    mapImage.src = event.target.result;
+                    mapImage.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        let autoInterval;
+        function startAutoSimulation() {
+            if(isEmergency) return;
+            let step = 0;
+            const path = [{x:10,y:30},{x:90,y:30},{x:90,y:70},{x:10,y:70}];
+            speedDisplay.innerText = "8";
+            autoInterval = setInterval(() => {
+                const pos = path[step % path.length];
+                miniTruck.style.left = pos.x + "%";
+                miniTruck.style.top = pos.y + "%";
+                step++;
+            }, 2500);
+        }
+
+        function stopAutoSimulation() { clearInterval(autoInterval); }
+
+        let currentBattery = 85;
+        setInterval(() => {
+            if (currentBattery > 5) {
+                currentBattery -= 0.05;
+                document.getElementById('bat-val').innerText = Math.round(currentBattery);
+                document.getElementById('bat-level').style.width = currentBattery + "%";
+            }
+        }, 4000);
+    </script>
+</body>
+</html>
